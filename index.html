@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gym Macro Splitter & 1RM Calculator</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script>
+    tailwind.config = { darkMode: 'class' };
+  </script>
+  <style>
+    input[type=number]::-webkit-inner-spin-button { opacity: .4; }
+  </style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen antialiased">
+  <div class="max-w-5xl mx-auto px-4 py-8">
+    <header class="mb-8 flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <h1 class="text-3xl font-bold tracking-tight">Gym <span class="text-emerald-400">Macro</span> &amp; <span class="text-sky-400">1RM</span></h1>
+        <p class="text-gray-400 text-sm mt-1">Daily macro targets split per meal, plus one-rep-max estimates and training percentages.</p>
+      </div>
+      <div class="flex rounded-lg bg-gray-900 p-1 border border-gray-800" role="group" aria-label="Units">
+        <button data-unit="metric" class="unit-btn px-3 py-1.5 text-sm rounded-md">kg / cm</button>
+        <button data-unit="imperial" class="unit-btn px-3 py-1.5 text-sm rounded-md">lb / in</button>
+      </div>
+    </header>
+
+    <nav class="flex gap-2 mb-6 border-b border-gray-800">
+      <button data-tab="macro" class="tab-btn px-4 py-2 -mb-px border-b-2 font-medium">Macro Splitter</button>
+      <button data-tab="orm" class="tab-btn px-4 py-2 -mb-px border-b-2 font-medium">1RM Calculator</button>
+    </nav>
+
+    <!-- MACRO SPLITTER -->
+    <section id="tab-macro" class="grid gap-6 lg:grid-cols-5">
+      <form id="macroForm" class="lg:col-span-2 bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
+        <h2 class="font-semibold text-lg">Your stats</h2>
+        <div class="grid grid-cols-2 gap-3">
+          <label class="block text-sm">
+            <span class="text-gray-400">Sex</span>
+            <select id="sex" class="field">
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+          </label>
+          <label class="block text-sm">
+            <span class="text-gray-400">Age</span>
+            <input id="age" type="number" min="14" max="99" value="28" class="field" />
+          </label>
+          <label class="block text-sm">
+            <span class="text-gray-400">Weight (<span class="u-w">kg</span>)</span>
+            <input id="weight" type="number" min="30" step="0.1" value="80" class="field" />
+          </label>
+          <label class="block text-sm">
+            <span class="text-gray-400">Height (<span class="u-h">cm</span>)</span>
+            <input id="height" type="number" min="100" step="0.1" value="180" class="field" />
+          </label>
+        </div>
+        <label class="block text-sm">
+          <span class="text-gray-400">Activity level</span>
+          <select id="activity" class="field">
+            <option value="1.2">Sedentary (desk job, little exercise)</option>
+            <option value="1.375">Light (1–3 sessions/week)</option>
+            <option value="1.55" selected>Moderate (3–5 sessions/week)</option>
+            <option value="1.725">Very active (6–7 sessions/week)</option>
+            <option value="1.9">Athlete (2x/day or physical job)</option>
+          </select>
+        </label>
+        <label class="block text-sm">
+          <span class="text-gray-400">Goal</span>
+          <select id="goal" class="field">
+            <option value="-500">Cut (−500 kcal)</option>
+            <option value="-250">Lean cut (−250 kcal)</option>
+            <option value="0" selected>Maintain</option>
+            <option value="250">Lean bulk (+250 kcal)</option>
+            <option value="500">Bulk (+500 kcal)</option>
+          </select>
+        </label>
+        <div class="grid grid-cols-2 gap-3">
+          <label class="block text-sm">
+            <span class="text-gray-400">Protein (g/kg)</span>
+            <input id="proteinPerKg" type="number" min="0.8" max="3.5" step="0.1" value="2.0" class="field" />
+          </label>
+          <label class="block text-sm">
+            <span class="text-gray-400">Fat (% kcal)</span>
+            <input id="fatPct" type="number" min="15" max="45" step="1" value="25" class="field" />
+          </label>
+        </div>
+        <label class="block text-sm">
+          <span class="text-gray-400">Meals per day: <span id="mealsLabel" class="text-gray-100 font-semibold">4</span></span>
+          <input id="meals" type="range" min="2" max="7" value="4" class="w-full accent-emerald-500 mt-2" />
+        </label>
+      </form>
+
+      <div class="lg:col-span-3 space-y-6">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="stat"><div class="stat-label">BMR</div><div id="bmr" class="stat-value">–</div></div>
+          <div class="stat"><div class="stat-label">TDEE</div><div id="tdee" class="stat-value">–</div></div>
+          <div class="stat col-span-2 border-emerald-700/60"><div class="stat-label">Target calories</div><div id="target" class="stat-value text-emerald-400">–</div></div>
+        </div>
+
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
+          <h2 class="font-semibold text-lg mb-4">Daily macros</h2>
+          <div class="flex h-3 rounded-full overflow-hidden mb-4 bg-gray-800">
+            <div id="barP" class="bg-rose-500 transition-all"></div>
+            <div id="barC" class="bg-amber-400 transition-all"></div>
+            <div id="barF" class="bg-sky-500 transition-all"></div>
+          </div>
+          <div class="grid grid-cols-3 gap-3 text-center">
+            <div><div class="text-xs uppercase tracking-wide text-rose-400">Protein</div><div id="pG" class="text-2xl font-bold">–</div><div id="pK" class="text-xs text-gray-500"></div></div>
+            <div><div class="text-xs uppercase tracking-wide text-amber-400">Carbs</div><div id="cG" class="text-2xl font-bold">–</div><div id="cK" class="text-xs text-gray-500"></div></div>
+            <div><div class="text-xs uppercase tracking-wide text-sky-400">Fat</div><div id="fG" class="text-2xl font-bold">–</div><div id="fK" class="text-xs text-gray-500"></div></div>
+          </div>
+          <p id="macroWarn" class="hidden mt-4 text-sm text-amber-300 bg-amber-900/30 border border-amber-800 rounded-lg p-3"></p>
+        </div>
+
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
+          <h2 class="font-semibold text-lg mb-4">Per-meal split</h2>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="text-gray-400 text-left">
+                <tr><th class="py-2 pr-2">Meal</th><th class="py-2 px-2 text-right">kcal</th><th class="py-2 px-2 text-right text-rose-400">P</th><th class="py-2 px-2 text-right text-amber-400">C</th><th class="py-2 pl-2 text-right text-sky-400">F</th></tr>
+              </thead>
+              <tbody id="mealTable" class="divide-y divide-gray-800"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 1RM CALCULATOR -->
+    <section id="tab-orm" class="hidden grid gap-6 lg:grid-cols-5">
+      <form id="ormForm" class="lg:col-span-2 bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-4">
+        <h2 class="font-semibold text-lg">Your set</h2>
+        <label class="block text-sm">
+          <span class="text-gray-400">Weight lifted (<span class="u-w">kg</span>)</span>
+          <input id="liftWeight" type="number" min="1" step="0.5" value="100" class="field" />
+        </label>
+        <label class="block text-sm">
+          <span class="text-gray-400">Reps completed: <span id="repsLabel" class="text-gray-100 font-semibold">5</span></span>
+          <input id="reps" type="range" min="1" max="15" value="5" class="w-full accent-sky-500 mt-2" />
+        </label>
+        <label class="block text-sm">
+          <span class="text-gray-400">Plate rounding (<span class="u-w">kg</span>)</span>
+          <select id="rounding" class="field">
+            <option value="0">No rounding</option>
+            <option value="1">1</option>
+            <option value="2.5" selected>2.5</option>
+            <option value="5">5</option>
+          </select>
+        </label>
+        <p class="text-xs text-gray-500">Estimates are most accurate for sets of 10 reps or fewer.</p>
+      </form>
+
+      <div class="lg:col-span-3 space-y-6">
+        <div class="bg-gray-900 border border-sky-800/60 rounded-xl p-5 text-center">
+          <div class="stat-label">Estimated 1RM (average)</div>
+          <div id="ormAvg" class="text-5xl font-bold text-sky-400 mt-1">–</div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 text-sm" id="formulaGrid"></div>
+        </div>
+
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
+          <h2 class="font-semibold text-lg mb-4">Training percentages</h2>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="text-gray-400 text-left">
+                <tr><th class="py-2 pr-2">% 1RM</th><th class="py-2 px-2 text-right">Load</th><th class="py-2 px-2 text-right">~Reps</th><th class="py-2 pl-2">Focus</th></tr>
+              </thead>
+              <tbody id="pctTable" class="divide-y divide-gray-800"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="mt-10 text-xs text-gray-600 text-center">BMR via Mifflin-St Jeor. Estimates only — not medical advice.</footer>
+  </div>
+
+  <style type="text/tailwindcss">
+    .field { @apply mt-1 w-full rounded-lg bg-gray-950 border border-gray-700 px-3 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent; }
+    .stat { @apply bg-gray-900 border border-gray-800 rounded-xl p-4; }
+    .stat-label { @apply text-xs uppercase tracking-wide text-gray-400; }
+    .stat-value { @apply text-2xl font-bold mt-1; }
+  </style>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const KG_PER_LB = 0.45359237;
+    const CM_PER_IN = 2.54;
+    let units = 'metric';
+
+    try { units = localStorage.getItem('gma-units') || 'metric'; } catch (e) {}
+
+    // ---------- Tabs ----------
+    function showTab(name) {
+      document.querySelectorAll('.tab-btn').forEach((b) => {
+        const active = b.dataset.tab === name;
+        b.classList.toggle('border-emerald-400', active);
+        b.classList.toggle('text-white', active);
+        b.classList.toggle('border-transparent', !active);
+        b.classList.toggle('text-gray-500', !active);
+      });
+      $('tab-macro').classList.toggle('hidden', name !== 'macro');
+      $('tab-orm').classList.toggle('hidden', name !== 'orm');
+    }
+    document.querySelectorAll('.tab-btn').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+
+    // ---------- Units ----------
+    function setUnits(next, convert) {
+      if (convert && next !== units) {
+        const toImp = next === 'imperial';
+        const w = (v) => +(toImp ? v / KG_PER_LB : v * KG_PER_LB).toFixed(1);
+        $('weight').value = w(+$('weight').value);
+        $('liftWeight').value = w(+$('liftWeight').value);
+        $('height').value = +(toImp ? $('height').value / CM_PER_IN : $('height').value * CM_PER_IN).toFixed(1);
+      }
+      units = next;
+      try { localStorage.setItem('gma-units', units); } catch (e) {}
+      document.querySelectorAll('.u-w').forEach((el) => (el.textContent = units === 'metric' ? 'kg' : 'lb'));
+      document.querySelectorAll('.u-h').forEach((el) => (el.textContent = units === 'metric' ? 'cm' : 'in'));
+      document.querySelectorAll('.unit-btn').forEach((b) => {
+        const active = b.dataset.unit === units;
+        b.classList.toggle('bg-gray-700', active);
+        b.classList.toggle('text-white', active);
+        b.classList.toggle('text-gray-400', !active);
+      });
+      const opts = units === 'metric' ? ['1', '2.5', '5'] : ['2.5', '5', '10'];
+      const sel = $('rounding');
+      sel.innerHTML = '<option value="0">No rounding</option>' +
+        opts.map((o, i) => `<option value="${o}" ${i === 1 ? 'selected' : ''}>${o}</option>`).join('');
+      calcMacros();
+      calcORM();
+    }
+    document.querySelectorAll('.unit-btn').forEach((b) => b.addEventListener('click', () => setUnits(b.dataset.unit, true)));
+
+    // ---------- Macro splitter ----------
+    const fmt = (n) => Math.round(n).toLocaleString();
+
+    function calcMacros() {
+      const sex = $('sex').value;
+      const age = +$('age').value;
+      let weightKg = +$('weight').value;
+      let heightCm = +$('height').value;
+      if (units === 'imperial') { weightKg *= KG_PER_LB; heightCm *= CM_PER_IN; }
+      const meals = +$('meals').value;
+      $('mealsLabel').textContent = meals;
+
+      if (!(age > 0 && weightKg > 0 && heightCm > 0)) return;
+
+      const bmr = 10 * weightKg + 6.25 * heightCm - 5 * age + (sex === 'male' ? 5 : -161);
+      const tdee = bmr * +$('activity').value;
+      const target = Math.max(1200, tdee + +$('goal').value);
+
+      const proteinG = weightKg * (+$('proteinPerKg').value || 0);
+      const fatKcal = target * ((+$('fatPct').value || 0) / 100);
+      const fatG = fatKcal / 9;
+      const proteinKcal = proteinG * 4;
+      const carbKcal = Math.max(0, target - proteinKcal - fatKcal);
+      const carbG = carbKcal / 4;
+
+      $('bmr').textContent = fmt(bmr) + ' kcal';
+      $('tdee').textContent = fmt(tdee) + ' kcal';
+      $('target').textContent = fmt(target) + ' kcal';
+
+      $('pG').textContent = fmt(proteinG) + 'g';
+      $('cG').textContent = fmt(carbG) + 'g';
+      $('fG').textContent = fmt(fatG) + 'g';
+      const total = proteinKcal + carbKcal + fatKcal;
+      const pct = (k) => (total ? (k / total) * 100 : 0);
+      $('pK').textContent = `${fmt(proteinKcal)} kcal · ${pct(proteinKcal).toFixed(0)}%`;
+      $('cK').textContent = `${fmt(carbKcal)} kcal · ${pct(carbKcal).toFixed(0)}%`;
+      $('fK').textContent = `${fmt(fatKcal)} kcal · ${pct(fatKcal).toFixed(0)}%`;
+      $('barP').style.width = pct(proteinKcal) + '%';
+      $('barC').style.width = pct(carbKcal) + '%';
+      $('barF').style.width = pct(fatKcal) + '%';
+
+      const warn = $('macroWarn');
+      if (proteinKcal + fatKcal > target) {
+        warn.textContent = 'Protein + fat exceed your calorie target, so carbs are at 0g. Lower protein g/kg or fat %.';
+        warn.classList.remove('hidden');
+      } else {
+        warn.classList.add('hidden');
+      }
+
+      $('mealTable').innerHTML = Array.from({ length: meals }, (_, i) => `
+        <tr>
+          <td class="py-2 pr-2 text-gray-300">Meal ${i + 1}</td>
+          <td class="py-2 px-2 text-right">${fmt(total / meals)}</td>
+          <td class="py-2 px-2 text-right">${fmt(proteinG / meals)}g</td>
+          <td class="py-2 px-2 text-right">${fmt(carbG / meals)}g</td>
+          <td class="py-2 pl-2 text-right">${fmt(fatG / meals)}g</td>
+        </tr>`).join('');
+    }
+
+    // ---------- 1RM ----------
+    const formulas = {
+      Epley:    (w, r) => (r === 1 ? w : w * (1 + r / 30)),
+      Brzycki:  (w, r) => w * 36 / (37 - r),
+      Lombardi: (w, r) => w * Math.pow(r, 0.10),
+      Lander:   (w, r) => (100 * w) / (101.3 - 2.67123 * r),
+    };
+
+    const pctRows = [
+      [100, 1, 'Max strength'], [95, 2, 'Max strength'], [90, 4, 'Strength'],
+      [85, 6, 'Strength'], [80, 8, 'Strength / hypertrophy'], [75, 10, 'Hypertrophy'],
+      [70, 12, 'Hypertrophy'], [65, 15, 'Hypertrophy / endurance'], [60, 18, 'Endurance'],
+      [55, 20, 'Endurance / warm-up'], [50, 24, 'Warm-up'],
+    ];
+
+    function roundTo(v, step) { return step > 0 ? Math.round(v / step) * step : v; }
+    function fmtLoad(v) { return (Math.round(v * 10) / 10).toLocaleString() + ' ' + (units === 'metric' ? 'kg' : 'lb'); }
+
+    function calcORM() {
+      const w = +$('liftWeight').value;
+      const r = +$('reps').value;
+      $('repsLabel').textContent = r;
+      if (!(w > 0)) return;
+
+      const results = Object.entries(formulas).map(([name, f]) => [name, f(w, r)]);
+      const avg = results.reduce((s, [, v]) => s + v, 0) / results.length;
+      const step = +$('rounding').value;
+
+      $('ormAvg').textContent = fmtLoad(roundTo(avg, step));
+      $('formulaGrid').innerHTML = results.map(([name, v]) => `
+        <div class="bg-gray-950 border border-gray-800 rounded-lg p-3">
+          <div class="text-xs text-gray-500">${name}</div>
+          <div class="font-semibold">${fmtLoad(v)}</div>
+        </div>`).join('');
+
+      $('pctTable').innerHTML = pctRows.map(([p, reps, focus]) => `
+        <tr class="${p >= 85 ? 'text-gray-100' : 'text-gray-300'}">
+          <td class="py-2 pr-2">
+            <div class="flex items-center gap-2">
+              <span class="w-10">${p}%</span>
+              <div class="hidden sm:block h-1.5 w-24 bg-gray-800 rounded-full overflow-hidden"><div class="h-full bg-sky-500" style="width:${p}%"></div></div>
+            </div>
+          </td>
+          <td class="py-2 px-2 text-right font-semibold">${fmtLoad(roundTo(avg * p / 100, step))}</td>
+          <td class="py-2 px-2 text-right">${reps}</td>
+          <td class="py-2 pl-2 text-gray-400">${focus}</td>
+        </tr>`).join('');
+    }
+
+    $('macroForm').addEventListener('input', calcMacros);
+    $('ormForm').addEventListener('input', calcORM);
+    $('macroForm').addEventListener('submit', (e) => e.preventDefault());
+    $('ormForm').addEventListener('submit', (e) => e.preventDefault());
+
+    // ---------- Init ----------
+    if (units === 'imperial') {
+      // Defaults are metric; convert them once if the saved preference is imperial.
+      units = 'metric';
+      setUnits('imperial', true);
+    } else {
+      setUnits('metric', false);
+    }
+    showTab('macro');
+  </script>
+</body>
+</html>
